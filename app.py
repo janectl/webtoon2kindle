@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, send_file
+from importer import fetch_episode
 from PIL import Image, ImageOps, ImageEnhance, UnidentifiedImageError
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
@@ -9,7 +10,7 @@ import os
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
-SIZE = (1236, 1648)
+SIZE = (1072, 1448)
 MAX_IMAGES = 30
 MAX_PIXELS = 100_000_000
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
@@ -18,11 +19,11 @@ Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 def convert_images(files, grayscale=True, contrast=1.15):
     pages = []
     for file in files:
-        name = secure_filename(file.filename or '')
+        name = secure_filename(getattr(file, 'filename', 'episode.jpg') or 'episode.jpg')
         if not name.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
             raise ValueError('Only PNG, JPG, and WEBP files are supported.')
         try:
-            img = Image.open(file.stream)
+            img = file if isinstance(file, Image.Image) else Image.open(file.stream)
             if img.width * img.height > MAX_PIXELS:
                 raise ValueError('Image exceeds pixel limit.')
             img = ImageOps.exif_transpose(img).convert('RGB')
@@ -82,13 +83,15 @@ def index():
 @app.post('/convert')
 def convert():
     files = [f for f in request.files.getlist('images') if f.filename]
-    if not files or len(files) > MAX_IMAGES:
-        return 'Upload between 1 and 30 images.', 400
+    url = request.form.get('url', '').strip()
+    if not url and (not files or len(files) > MAX_IMAGES):
+        return 'Paste a URL or upload between 1 and 30 images.', 400
     output = request.form.get('format', 'cbz')
     if output not in ('pdf', 'cbz'):
         return 'Invalid format.', 400
     try:
-        pages = convert_images(files, request.form.get('grayscale') == 'on')
+        source = fetch_episode(url) if url else files
+        pages = convert_images(source, request.form.get('grayscale') == 'on')
         data = export_pdf(pages) if output == 'pdf' else export_cbz(pages)
     except (ValueError, OSError) as exc:
         return str(exc), 400

@@ -1,31 +1,21 @@
-# Webtoon2Kindle MVP
+# Webtoon2Kindle
 
-Self-hosted Flask app to convert authorized local PNG/JPEG/WEBP comic images into Kindle Paperwhite 6.8-inch (1236 × 1648) PDF or CBZ files.
+Local Flask converter for Kindle Paperwhite 4 (6-inch, 1072 x 1448). Supports PDF and CBZ, URL-based import of accessible WEBTOON episode images, or manual image upload. No authentication, DRM bypass, or access-control circumvention. Use only with content you are permitted to download and convert.
 
-## Install (Linux)
+## Start
 
 ```bash
-sudo apt install python3-venv
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
 
-Open http://127.0.0.1:8091 and upload your comic images in reading order. Choose CBZ for KOReader or PDF. Transfer the resulting file to your Kindle over USB.
+Open http://127.0.0.1:8091 and paste a WEBTOON episode URL or upload images. Select PDF or CBZ. Files download to your browser.
 
-## Current limitations
+## Limitations
 
-- Upload images only; no automatic scraping of Webtoon or DRM/access-control bypass.
-- Fixed 6.8-inch Paperwhite resolution; other device presets can be added.
-- Horizontal slicing does not detect panel or speech bubble boundaries.
-- Image order follows browser multipart selection order; upload in reading order.
-- Max 30 source images, 100 MB request, 100 million pixels per image, and 300 output pages.
-- Runs on loopback only; do not expose the development server to the internet.
-
-## Test
-
-```bash
-pip install pytest
-pytest -q
-```
+- URL import relies on the episode's publicly available HTML and may stop working when WEBTOON changes markup or blocks requests.
+- This is a local-only, synchronous MVP; episodes can take a while to process.
+- Page boundaries are fixed, not panel-aware.
+- Importer allows only WEBTOON viewer pages and known static-image hosts, with basic SSRF protections. Do not expose the Flask development server to the internet.
