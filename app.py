@@ -16,52 +16,80 @@ MAX_PIXELS = 100_000_000
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 
 
+
 def convert_images(files, grayscale=True, contrast=1.15):
     pages = []
+
     for file in files:
-        name = secure_filename(getattr(file, 'filename', 'episode.jpg') or 'episode.jpg')
-        if not name.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-            raise ValueError('Only PNG, JPG, and WEBP files are supported.')
+        name = secure_filename(
+            getattr(file, 'filename', 'episode.jpg') or 'episode.jpg'
+        )
+
+        if not isinstance(file, Image.Image):
+            if not name.lower().endswith(
+                ('.png', '.jpg', '.jpeg', '.webp')
+            ):
+                raise ValueError('Unsupported image format.')
+
         try:
-            img = file if isinstance(file, Image.Image) else Image.open(file.stream)
+            img = (
+                file.copy()
+                if isinstance(file, Image.Image)
+                else Image.open(file.stream)
+            )
+
             if img.width * img.height > MAX_PIXELS:
                 raise ValueError('Image exceeds pixel limit.')
+
             img = ImageOps.exif_transpose(img).convert('RGB')
+
             if grayscale:
                 img = ImageOps.grayscale(img)
                 img = ImageEnhance.Contrast(img).enhance(contrast)
                 img = img.convert('RGB')
-            width, height = SIZE
-            scale = width / img.width
-            scaled_h = round(img.height * scale)
-            # Process strips to avoid building a massive resized full-height image.
-            source_step = height / scale
-            y = 0.0
-            while y < img.height:
-                y2 = min(img.height, y + source_step)
-                strip = img.crop((0, int(round(y)), img.width, int(round(y2))))
-                new_h = min(height, max(1, round((y2-y) * scale)))
-                strip = strip.resize((width, new_h), Image.Resampling.LANCZOS)
-                page = Image.new('RGB', SIZE, 'white')
-                page.paste(strip, (0, 0))
-                pages.append(page)
-                if len(pages) > 1000:
-                    raise ValueError('Too many output pages (max 1000).')
-                y = y2
-        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+
+            # No height splitting or resizing.
+            pages.append(img)
+
+        except (
+            UnidentifiedImageError,
+            OSError,
+            Image.DecompressionBombError
+        ) as exc:
             raise ValueError(f'Invalid image: {name}') from exc
+
     return pages
+
 
 
 def export_pdf(pages):
     buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=SIZE, pageCompression=1)
+
+    pdf = canvas.Canvas(
+        buffer,
+        pageCompression=1
+    )
+
     for page in pages:
-        pdf.drawImage(ImageReader(page), 0, 0, width=SIZE[0], height=SIZE[1])
+        width, height = page.size
+
+        pdf.setPageSize((width, height))
+
+        pdf.drawImage(
+            ImageReader(page),
+            0,
+            0,
+            width=width,
+            height=height
+        )
+
         pdf.showPage()
+
     pdf.save()
     buffer.seek(0)
+
     return buffer
+
 
 
 def export_cbz(pages):
