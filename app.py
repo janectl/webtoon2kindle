@@ -1,0 +1,99 @@
+from flask import Flask, render_template, request, send_file
+from PIL import Image, ImageOps, ImageEnhance, UnidentifiedImageError
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from io import BytesIO
+from zipfile import ZipFile, ZIP_DEFLATED
+from werkzeug.utils import secure_filename
+import os
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+SIZE = (1236, 1648)
+MAX_IMAGES = 30
+MAX_PIXELS = 100_000_000
+Image.MAX_IMAGE_PIXELS = MAX_PIXELS
+
+
+def convert_images(files, grayscale=True, contrast=1.15):
+    pages = []
+    for file in files:
+        name = secure_filename(file.filename or '')
+        if not name.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+            raise ValueError('Only PNG, JPG, and WEBP files are supported.')
+        try:
+            img = Image.open(file.stream)
+            if img.width * img.height > MAX_PIXELS:
+                raise ValueError('Image exceeds pixel limit.')
+            img = ImageOps.exif_transpose(img).convert('RGB')
+            if grayscale:
+                img = ImageOps.grayscale(img)
+                img = ImageEnhance.Contrast(img).enhance(contrast)
+                img = img.convert('RGB')
+            width, height = SIZE
+            scale = width / img.width
+            scaled_h = round(img.height * scale)
+            # Process strips to avoid building a massive resized full-height image.
+            source_step = height / scale
+            y = 0.0
+            while y < img.height:
+                y2 = min(img.height, y + source_step)
+                strip = img.crop((0, int(round(y)), img.width, int(round(y2))))
+                new_h = min(height, max(1, round((y2-y) * scale)))
+                strip = strip.resize((width, new_h), Image.Resampling.LANCZOS)
+                page = Image.new('RGB', SIZE, 'white')
+                page.paste(strip, (0, 0))
+                pages.append(page)
+                if len(pages) > 300:
+                    raise ValueError('Too many output pages (max 300).')
+                y = y2
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            raise ValueError(f'Invalid image: {name}') from exc
+    return pages
+
+
+def export_pdf(pages):
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=SIZE, pageCompression=1)
+    for page in pages:
+        pdf.drawImage(ImageReader(page), 0, 0, width=SIZE[0], height=SIZE[1])
+        pdf.showPage()
+    pdf.save()
+    buffer.seek(0)
+    return buffer
+
+
+def export_cbz(pages):
+    buffer = BytesIO()
+    with ZipFile(buffer, 'w', ZIP_DEFLATED) as archive:
+        for i, page in enumerate(pages, 1):
+            image_data = BytesIO()
+            page.save(image_data, format='JPEG', quality=88, optimize=True)
+            archive.writestr(f'{i:04d}.jpg', image_data.getvalue())
+    buffer.seek(0)
+    return buffer
+
+
+@app.get('/')
+def index():
+    return render_template('index.html')
+
+
+@app.post('/convert')
+def convert():
+    files = [f for f in request.files.getlist('images') if f.filename]
+    if not files or len(files) > MAX_IMAGES:
+        return 'Upload between 1 and 30 images.', 400
+    output = request.form.get('format', 'cbz')
+    if output not in ('pdf', 'cbz'):
+        return 'Invalid format.', 400
+    try:
+        pages = convert_images(files, request.form.get('grayscale') == 'on')
+        data = export_pdf(pages) if output == 'pdf' else export_cbz(pages)
+    except (ValueError, OSError) as exc:
+        return str(exc), 400
+    return send_file(data, mimetype='application/pdf' if output == 'pdf' else 'application/vnd.comicbook+zip', as_attachment=True, download_name=f'kindle_comic.{output}')
+
+
+if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=8091, debug=False)
