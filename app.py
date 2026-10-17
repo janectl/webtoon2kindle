@@ -45,8 +45,8 @@ def convert_images(files, grayscale=True, contrast=1.15):
                 page = Image.new('RGB', SIZE, 'white')
                 page.paste(strip, (0, 0))
                 pages.append(page)
-                if len(pages) > 300:
-                    raise ValueError('Too many output pages (max 300).')
+                if len(pages) > 1000:
+                    raise ValueError('Too many output pages (max 1000).')
                 y = y2
         except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
             raise ValueError(f'Invalid image: {name}') from exc
