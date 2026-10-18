@@ -6,15 +6,25 @@ from reportlab.lib.utils import ImageReader
 from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 from werkzeug.utils import secure_filename
-import os
+import re
 
 app = Flask(__name__)
+
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
-SIZE = (1072, 1448)
+
 MAX_IMAGES = 30
 MAX_PIXELS = 100_000_000
+
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 
+
+def safe_download_name(value):
+    """Create a readable, filesystem-safe download filename."""
+
+    value = re.sub(r'[\\/:*?"<>|]+', '', value)
+    value = re.sub(r'\s+', ' ', value).strip(' .')
+
+    return value[:150] or 'kindle_comic'
 
 
 def convert_images(files, grayscale=True, contrast=1.15):
@@ -48,6 +58,7 @@ def convert_images(files, grayscale=True, contrast=1.15):
                 img = ImageEnhance.Contrast(img).enhance(contrast)
                 img = img.convert('RGB')
 
+            # Preserve original image dimensions.
             # No height splitting or resizing.
             pages.append(img)
 
@@ -59,7 +70,6 @@ def convert_images(files, grayscale=True, contrast=1.15):
             raise ValueError(f'Invalid image: {name}') from exc
 
     return pages
-
 
 
 def export_pdf(pages):
@@ -91,14 +101,25 @@ def export_pdf(pages):
     return buffer
 
 
-
 def export_cbz(pages):
     buffer = BytesIO()
+
     with ZipFile(buffer, 'w', ZIP_DEFLATED) as archive:
         for i, page in enumerate(pages, 1):
             image_data = BytesIO()
-            page.save(image_data, format='JPEG', quality=88, optimize=True)
-            archive.writestr(f'{i:04d}.jpg', image_data.getvalue())
+
+            page.save(
+                image_data,
+                format='JPEG',
+                quality=88,
+                optimize=True
+            )
+
+            archive.writestr(
+                f'{i:04d}.jpg',
+                image_data.getvalue()
+            )
+
     buffer.seek(0)
     return buffer
 
@@ -110,21 +131,62 @@ def index():
 
 @app.post('/convert')
 def convert():
-    files = [f for f in request.files.getlist('images') if f.filename]
+    files = [
+        f for f in request.files.getlist('images')
+        if f.filename
+    ]
+
     url = request.form.get('url', '').strip()
+
     if not url and (not files or len(files) > MAX_IMAGES):
         return 'Paste a URL or upload between 1 and 30 images.', 400
+
     output = request.form.get('format', 'cbz')
+
     if output not in ('pdf', 'cbz'):
         return 'Invalid format.', 400
+
     try:
-        source = fetch_episode(url) if url else files
-        pages = convert_images(source, request.form.get('grayscale') == 'on')
-        data = export_pdf(pages) if output == 'pdf' else export_cbz(pages)
+        # Import WEBTOON images and episode metadata.
+        if url:
+            source, metadata = fetch_episode(url)
+
+            filename = safe_download_name(
+                f"{metadata['series']} - {metadata['episode']}"
+            )
+
+        else:
+            source = files
+            filename = 'kindle_comic'
+
+        # Convert images only once.
+        pages = convert_images(
+            source,
+            grayscale=request.form.get('grayscale') == 'on'
+        )
+
+        # Export only once.
+        if output == 'pdf':
+            data = export_pdf(pages)
+            mimetype = 'application/pdf'
+        else:
+            data = export_cbz(pages)
+            mimetype = 'application/vnd.comicbook+zip'
+
     except (ValueError, OSError) as exc:
         return str(exc), 400
-    return send_file(data, mimetype='application/pdf' if output == 'pdf' else 'application/vnd.comicbook+zip', as_attachment=True, download_name=f'kindle_comic.{output}')
+
+    return send_file(
+        data,
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=f'{filename}.{output}'
+    )
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8091, debug=False)
+    app.run(
+        host='127.0.0.1',
+        port=8091,
+        debug=False
+    )
