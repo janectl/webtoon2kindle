@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, send_file
-from importer import fetch_episode
+from web.importer import fetch_episode
 from PIL import Image, ImageOps, ImageEnhance, UnidentifiedImageError
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader

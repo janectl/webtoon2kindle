@@ -1,0 +1,19 @@
+
+services:
+  webtoon2kindle:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webtoon2kindle
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:8091:8091"
+
+    environment:
+      PYTHONUNBUFFERED: "1"
+
+    mem_limit: 1g
+
+    security_opt:
+      - no-new-privileges:true
