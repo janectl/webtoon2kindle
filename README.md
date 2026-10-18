@@ -22,88 +22,56 @@ Since WEBTOON is designed for continuous vertical scrolling, I wanted a simple w
 - Support for manually uploading PNG, JPG, JPEG, and WEBP images
 - Kindle Paperwhite and KOReader-friendly output
 
-## 🛠️ Tech Stack
-
-| Technology | Purpose |
-|---|---|
-| Python 3 | Application programming language |
-| Flask | Web application backend |
-| Pillow | Image processing and grayscale conversion |
-| Requests | Downloading episode images |
-| BeautifulSoup4 | Parsing WEBTOON episode HTML |
-| ReportLab | PDF generation |
-| zipfile | CBZ archive generation |
-| HTML/CSS | Web interface |
 
 ## 📋 Prerequisites
 
-Before running Webtoon2Kindle, make sure you have:
+For the recommended Docker installation:
 
-- Python 3.10 or newer
-- pip
-- Git
-- A web browser
-- An internet connection for importing episodes
+-   Docker Engine (or Docker Desktop)
+-   Docker Compose v2 (`docker compose`)
+-   Git
+-   A web browser
+-   An internet connection for importing WEBTOON episodes
 
-The instructions below are intended for Linux. The application can also run on Windows and macOS with the appropriate Python environment.
+**You do not need to install Python, pip, or create a virtual
+environment on your host** when using Docker.
 
-## 🚀 Installation
+## 🐳 Installation with Docker Compose (Recommended)
 
 ### 1. Clone the repository
 
-```bash
+``` bash
 git clone https://github.com/janectl/webtoon2kindle.git
-cd Webtoon2Kindle
+cd webtoon2kindle
 ```
 
+### 2. Build and start the container
 
-### 2. Create a Python virtual environment
-
-```bash
-python3 -m venv venv
+``` bash
+docker compose up -d --build
 ```
 
-Activate the virtual environment:
+Docker Compose builds the application image, installs its Python
+dependencies, and starts the container.
 
-```bash
-source venv/bin/activate
+### 3. Verify the container
+
+``` bash
+docker compose ps
 ```
 
-For Windows:
+To view application logs:
 
-```powershell
-venv\Scripts\activate
+``` bash
+docker compose logs -f webtoon2kindle
 ```
 
-### 3. Install dependencies
+### 4. Open the web interface
 
-```bash
-pip install -r requirements.txt
-```
-
-If `requirements.txt` is not available, install the dependencies manually:
-
-```bash
-pip install flask pillow requests beautifulsoup4 reportlab werkzeug
-```
-
-### 4. Run the application
-
-```bash
-python3 app.py
-```
-
-The Flask development server should start on:
-
-```text
-http://127.0.0.1:8091
-```
-
-### 5. Access the web interface
-
-Open your browser and navigate to:
+On the same computer running Docker, open:
 
 **http://127.0.0.1:8091**
+
 
 Webtoon2Kindle is now ready to use!
 
@@ -147,47 +115,6 @@ Supported input formats:
 - JPEG
 - WEBP
 
-## 📱 Reading on Kindle
-
-Webtoon2Kindle was originally developed for the **Kindle Paperwhite 4 (6-inch display, 1072 × 1448 resolution)** using KOReader.
-
-### Transfer the converted file
-
-1. Connect your Kindle to your computer using a USB cable.
-2. Open the Kindle storage directory.
-3. Copy the generated PDF or CBZ file into your preferred folder.
-4. Safely eject the Kindle.
-5. Open KOReader.
-6. Navigate to the file and start reading.
-
-### Recommended settings
-
-For the best experience on an E Ink device:
-
-| Setting | Recommendation |
-|---|---|
-| Output format | CBZ |
-| Grayscale | Enabled |
-| Contrast | 1.15 |
-| Image aspect ratio | Preserve original |
-| Reader | KOReader |
-| Display settings | Adjust zoom and fit-to-width as needed |
-
-**Why CBZ?**
-
-CBZ files are ZIP archives containing images in reading order. KOReader can open them directly, making CBZ a practical choice for image-based comics.
-
-PDF is also supported, especially if you prefer a single document with individual image pages.
-
-### A note about WEBTOON image segments
-
-WEBTOON uses a continuous vertical reading format, but episodes may be delivered as multiple image segments.
-
-Webtoon2Kindle preserves the original image proportions without introducing additional height-based splitting.
-
-However, panels may still span multiple images because the source content is already segmented.
-
-The application does not automatically merge all source images into one continuous image.
 
 
 
