@@ -6,6 +6,7 @@ from reportlab.lib.utils import ImageReader
 from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 from werkzeug.utils import secure_filename
+from zipfile import ZipFile, ZIP_STORED
 import re
 
 app = Flask(__name__)
@@ -104,15 +105,21 @@ def export_pdf(pages):
 def export_cbz(pages):
     buffer = BytesIO()
 
-    with ZipFile(buffer, 'w', ZIP_DEFLATED) as archive:
+    with ZipFile(buffer, 'w', ZIP_STORED) as archive:
         for i, page in enumerate(pages, 1):
             image_data = BytesIO()
 
             page.save(
                 image_data,
                 format='JPEG',
-                quality=88,
-                optimize=True
+                quality=85,
+                optimize=True,
+                progressive=False,
+                **(
+                    {'subsampling': 0}
+                    if page.mode == 'RGB'
+                    else {}
+                )
             )
 
             archive.writestr(
@@ -120,9 +127,11 @@ def export_cbz(pages):
                 image_data.getvalue()
             )
 
+            image_data.close()
+            page.close()
+
     buffer.seek(0)
     return buffer
-
 
 @app.get('/')
 def index():
