@@ -7,7 +7,12 @@ from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 from werkzeug.utils import secure_filename
 from zipfile import ZipFile, ZIP_STORED
+from web.cbz_merger import merge_cbz
+from flask import request, send_file
+from zipfile import BadZipFile
 import re
+import os
+import tempfile
 
 app = Flask(__name__)
 
@@ -191,6 +196,44 @@ def convert():
         as_attachment=True,
         download_name=f'{filename}.{output}'
     )
+
+
+@app.route("/merge-cbz", methods=["POST"])
+def merge_cbz_route():
+    files = request.files.getlist("cbz_files")
+
+    if len(files) < 2:
+        return "Upload at least two CBZ files.", 400
+
+    if any(
+        not f.filename or not f.filename.lower().endswith(".cbz")
+        for f in files
+    ):
+        return "Only CBZ files are supported.", 400
+
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = os.path.join(
+                temp_dir, "Merged-Volume.cbz"
+            )
+
+            merge_cbz(files, output_path)
+
+            # Materialize response before temporary directory closes.
+            with open(output_path, "rb") as output:
+                merged_bytes = output.read()
+
+        from io import BytesIO
+
+        return send_file(
+            BytesIO(merged_bytes),
+            as_attachment=True,
+            download_name="Merged-Volume.cbz",
+            mimetype="application/vnd.comicbook+zip"
+        )
+
+    except (ValueError, BadZipFile) as exc:
+        return f"Invalid CBZ: {exc}", 400
 
 
 if __name__ == '__main__':
