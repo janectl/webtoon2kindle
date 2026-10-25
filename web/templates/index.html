@@ -4,12 +4,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-
     <title>Webtoon2Kindle</title>
 
     <style>
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        font: 16px system-ui;
+        font: 16px system-ui, sans-serif;
         background: #f3f4f6;
         color: #20232a;
         margin: 0;
@@ -29,19 +32,30 @@
         margin-top: 0;
       }
 
+      h2 {
+        font-size: 21px;
+        margin-bottom: 8px;
+      }
+
+      p {
+        line-height: 1.5;
+      }
+
       label {
         display: block;
         margin: 18px 0 8px;
+        font-weight: 500;
       }
 
       input[type="url"],
+      input[type="text"],
       select {
         width: 100%;
-        box-sizing: border-box;
         padding: 12px;
         border: 1px solid #bbb;
         border-radius: 8px;
         font: inherit;
+        background: white;
       }
 
       input[type="file"] {
@@ -60,8 +74,13 @@
         font: inherit;
       }
 
-      button:hover {
+      button:hover:not(:disabled) {
         background: #374151;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
 
       small {
@@ -74,17 +93,104 @@
         margin: 32px 0;
       }
 
-      .merge-section h2 {
-        margin-bottom: 8px;
-        font-size: 21px;
-      }
-
       .merge-section p {
         line-height: 1.5;
       }
 
       .merge-section input[type="file"] {
         margin-top: 8px;
+      }
+
+      .episode-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      .episode-heading strong {
+        font-size: 15px;
+      }
+
+      .secondary-button {
+        width: auto;
+        margin: 0;
+        padding: 9px 12px;
+        background: #e5e7eb;
+        color: #20232a;
+        font-size: 13px;
+      }
+
+      .secondary-button:hover:not(:disabled) {
+        background: #d1d5db;
+      }
+
+      #episode-list {
+        list-style: decimal;
+        padding-left: 28px;
+        margin: 12px 0 20px;
+      }
+
+      .episode-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .episode-item::marker {
+        font-weight: 600;
+      }
+
+      .episode-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .episode-filename {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-size: 14px;
+      }
+
+      .episode-controls {
+        display: flex;
+        flex-shrink: 0;
+        gap: 6px;
+      }
+
+      .episode-controls button {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        margin: 0;
+        background: #e5e7eb;
+        color: #20232a;
+      }
+
+      .episode-controls button:hover:not(:disabled) {
+        background: #d1d5db;
+      }
+
+      #merge-status {
+        font-size: 14px;
+        color: #4b5563;
+        overflow-wrap: anywhere;
+      }
+
+      .footer-info {
+        margin-bottom: 0;
+      }
+
+      @media (max-width: 480px) {
+        body {
+          padding: 16px 10px;
+        }
+
+        .card {
+          padding: 22px 18px;
+        }
       }
     </style>
   </head>
@@ -134,9 +240,7 @@
             <option value="cbz">
               CBZ (recommended for KOReader)
             </option>
-            <option value="pdf">
-              PDF
-            </option>
+            <option value="pdf">PDF</option>
           </select>
 
           <label>
@@ -154,53 +258,89 @@
         </form>
       </section>
 
-      <!-- Section Divider -->
       <hr class="section-divider" />
 
-      <!-- Merge CBZ Feature -->
+      <!-- CBZ Merger -->
       <section class="merge-section">
         <h2>📚 Merge CBZ Episodes</h2>
 
         <p>
-          Combine multiple CBZ episodes into one volume
-          without reducing image quality.
+          Combine multiple episodes into one CBZ volume.
+          Original image quality is preserved.
         </p>
 
         <form
+          id="merge-form"
           action="/merge-cbz"
           method="post"
           enctype="multipart/form-data"
         >
-          <label for="cbz-files">
-            Select CBZ episodes
-          </label>
+          <label for="cbz-files">Select CBZ episodes</label>
 
           <input
             id="cbz-files"
             type="file"
-            name="cbz_files"
             accept=".cbz"
             multiple
             required
           />
 
+          <input
+            type="hidden"
+            id="order-mode"
+            name="order_mode"
+            value="auto"
+          />
+
+          <div id="episode-manager" hidden>
+            <div class="episode-heading">
+              <strong>Reading order</strong>
+
+              <button
+                type="button"
+                id="sort-episodes"
+                class="secondary-button"
+              >
+                Sort episodes
+              </button>
+            </div>
+
+            <ol id="episode-list"></ol>
+          </div>
+
+          <label for="volume-name">Volume name</label>
+
+          <input
+            id="volume-name"
+            name="volume_name"
+            type="text"
+            placeholder="Dungeon Crawler Carl"
+            maxlength="100"
+          />
+
           <p>
             <small>
-              Select at least two CBZ files.
-              Episodes will be merged in their submitted order.
+              Select 2–20 CBZ files. Episodes are automatically sorted
+              by episode number. Use the arrow buttons to adjust their
+              reading order.
             </small>
           </p>
 
-          <button type="submit">
+          <button type="submit" id="merge-button">
             Merge and download CBZ
           </button>
+
+          <p
+            id="merge-status"
+            role="status"
+            aria-live="polite"
+          ></p>
         </form>
       </section>
 
-      <!-- Footer Information -->
       <hr class="section-divider" />
 
-      <p>
+      <p class="footer-info">
         <small>
           Imports only images accessible without bypassing restrictions.
           If the site blocks downloads, the app reports an error.
@@ -208,5 +348,212 @@
         </small>
       </p>
     </main>
+
+    <script>
+      const fileInput = document.getElementById("cbz-files");
+      const episodeManager = document.getElementById("episode-manager");
+      const episodeList = document.getElementById("episode-list");
+      const sortButton = document.getElementById("sort-episodes");
+      const orderMode = document.getElementById("order-mode");
+      const mergeForm = document.getElementById("merge-form");
+      const mergeButton = document.getElementById("merge-button");
+      const mergeStatus = document.getElementById("merge-status");
+      const volumeInput = document.getElementById("volume-name");
+
+      let selectedFiles = [];
+
+      function episodeNumber(filename) {
+        const match = filename.match(
+          /(?:episode|ep)[\s._-]*(\d+)/i
+        );
+
+        return match ? Number(match[1]) : null;
+      }
+
+      function sortFiles() {
+        selectedFiles.sort((a, b) => {
+          const numberA = episodeNumber(a.name);
+          const numberB = episodeNumber(b.name);
+
+          if (numberA !== null && numberB !== null) {
+            if (numberA !== numberB) {
+              return numberA - numberB;
+            }
+          } else if (numberA !== null) {
+            return -1;
+          } else if (numberB !== null) {
+            return 1;
+          }
+
+          return a.name.localeCompare(
+            b.name,
+            undefined,
+            {
+              numeric: true,
+              sensitivity: "base"
+            }
+          );
+        });
+
+        orderMode.value = "auto";
+        renderEpisodes();
+      }
+
+      function moveEpisode(index, direction) {
+        const target = index + direction;
+
+        if (target < 0 || target >= selectedFiles.length) {
+          return;
+        }
+
+        [
+          selectedFiles[index],
+          selectedFiles[target]
+        ] = [
+          selectedFiles[target],
+          selectedFiles[index]
+        ];
+
+        orderMode.value = "manual";
+        renderEpisodes();
+      }
+
+      function renderEpisodes() {
+        episodeList.replaceChildren();
+
+        episodeManager.hidden = selectedFiles.length === 0;
+
+        selectedFiles.forEach((file, index) => {
+          const item = document.createElement("li");
+          item.className = "episode-item";
+
+          const row = document.createElement("div");
+          row.className = "episode-row";
+
+          const filename = document.createElement("span");
+          filename.className = "episode-filename";
+          filename.textContent = file.name;
+
+          const controls = document.createElement("div");
+          controls.className = "episode-controls";
+
+          const up = document.createElement("button");
+          up.type = "button";
+          up.textContent = "↑";
+          up.setAttribute(
+            "aria-label",
+            `Move ${file.name} up`
+          );
+          up.disabled = index === 0;
+
+          up.addEventListener("click", () => {
+            moveEpisode(index, -1);
+          });
+
+          const down = document.createElement("button");
+          down.type = "button";
+          down.textContent = "↓";
+          down.setAttribute(
+            "aria-label",
+            `Move ${file.name} down`
+          );
+          down.disabled = index === selectedFiles.length - 1;
+
+          down.addEventListener("click", () => {
+            moveEpisode(index, 1);
+          });
+
+          controls.append(up, down);
+          row.append(filename, controls);
+          item.appendChild(row);
+          episodeList.appendChild(item);
+        });
+      }
+
+      fileInput.addEventListener("change", () => {
+        selectedFiles = Array.from(fileInput.files);
+        sortFiles();
+        mergeStatus.textContent = "";
+      });
+
+      sortButton.addEventListener("click", () => {
+        sortFiles();
+      });
+
+      mergeForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        if (
+          selectedFiles.length < 2 ||
+          selectedFiles.length > 20
+        ) {
+          mergeStatus.textContent =
+            "Please select between 2 and 20 CBZ files.";
+          return;
+        }
+
+        const data = new FormData();
+
+        // Submit files in the exact order shown on screen.
+        selectedFiles.forEach((file) => {
+          data.append("cbz_files", file, file.name);
+        });
+
+        data.append("order_mode", "manual");
+        data.append("volume_name", volumeInput.value);
+
+        mergeButton.disabled = true;
+        mergeStatus.textContent =
+          "Uploading and merging episodes...";
+
+        try {
+          const response = await fetch("/merge-cbz", {
+            method: "POST",
+            body: data
+          });
+
+          if (!response.ok) {
+            throw new Error(await response.text());
+          }
+
+          mergeStatus.textContent =
+            "Merge complete. Preparing download...";
+
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+
+          const disposition =
+            response.headers.get("Content-Disposition") || "";
+
+          const match = disposition.match(
+            /filename="([^"]+)"/
+          );
+
+          const filename = match
+            ? match[1]
+            : "Merged-Volume.cbz";
+
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+          }, 60000);
+
+          mergeStatus.textContent =
+            "Your merged CBZ has been downloaded!";
+        } catch (error) {
+          mergeStatus.textContent =
+            `Merge failed: ${error.message}`;
+        } finally {
+          mergeButton.disabled = false;
+        }
+      });
+    </script>
   </body>
 </html>

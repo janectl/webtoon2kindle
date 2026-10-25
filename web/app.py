@@ -1,17 +1,19 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, Response, render_template, request, send_file
 from web.importer import fetch_episode
+from web.cbz_merger import merge_cbz, sort_episodes, episode_number
+
 from PIL import Image, ImageOps, ImageEnhance, UnidentifiedImageError
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
+
 from io import BytesIO
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZipFile, ZIP_STORED, BadZipFile
 from werkzeug.utils import secure_filename
-from zipfile import ZipFile, ZIP_STORED
-from web.cbz_merger import merge_cbz
-from flask import request, send_file
-from zipfile import BadZipFile
-import re
+from tempfile import TemporaryDirectory
+
 import os
+import re
+
 import tempfile
 
 app = Flask(__name__)
@@ -198,42 +200,83 @@ def convert():
     )
 
 
-@app.route("/merge-cbz", methods=["POST"])
+@app.post("/merge-cbz")
 def merge_cbz_route():
-    files = request.files.getlist("cbz_files")
+    files = [
+        file
+        for file in request.files.getlist("cbz_files")
+        if file.filename
+    ]
 
-    if len(files) < 2:
-        return "Upload at least two CBZ files.", 400
+    if not 2 <= len(files) <= 20:
+        return "Select between 2 and 20 CBZ files.", 400
 
     if any(
-        not f.filename or not f.filename.lower().endswith(".cbz")
-        for f in files
+        not file.filename.lower().endswith(".cbz")
+        for file in files
     ):
         return "Only CBZ files are supported.", 400
 
+    # Default: sort by episode number.
+    # Manual: respect the exact order sent by the browser.
+    if request.form.get("order_mode") != "manual":
+        files = sort_episodes(files)
+
+    numbers = [
+        episode_number(file.filename)
+        for file in files
+    ]
+
+    series_name = safe_download_name(
+        request.form.get("volume_name", "").strip()
+    )
+
+    if not request.form.get("volume_name", "").strip():
+        series_name = "Merged-Volume"
+
+    if all(number is not None for number in numbers):
+        filename = (
+            f"{series_name} - Episodes "
+            f"{numbers[0]}-{numbers[-1]}.cbz"
+        )
+    else:
+        filename = f"{series_name}.cbz"
+
+    temp_dir = TemporaryDirectory()
+    output_path = os.path.join(temp_dir.name, "merged.cbz")
+
     try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            output_path = os.path.join(
-                temp_dir, "Merged-Volume.cbz"
-            )
+        total_pages = merge_cbz(files, output_path)
 
-            merge_cbz(files, output_path)
-
-            # Materialize response before temporary directory closes.
-            with open(output_path, "rb") as output:
-                merged_bytes = output.read()
-
-        from io import BytesIO
-
-        return send_file(
-            BytesIO(merged_bytes),
-            as_attachment=True,
-            download_name="Merged-Volume.cbz",
-            mimetype="application/vnd.comicbook+zip"
+        print(
+            f"[Webtoon2Kindle] Merged {len(files)} episodes "
+            f"into {total_pages} pages",
+            flush=True,
         )
 
-    except (ValueError, BadZipFile) as exc:
-        return f"Invalid CBZ: {exc}", 400
+    except (ValueError, BadZipFile, OSError) as exc:
+        temp_dir.cleanup()
+        return f"Unable to merge CBZ files: {exc}", 400
+
+    def stream_archive():
+        try:
+            with open(output_path, "rb") as archive:
+                while chunk := archive.read(1024 * 1024):
+                    yield chunk
+        finally:
+            temp_dir.cleanup()
+
+    response = Response(
+        stream_archive(),
+        mimetype="application/vnd.comicbook+zip",
+    )
+
+    response.headers["Content-Disposition"] = (
+        f"attachment; filename=\"{filename}\""
+    )
+    response.content_length = os.path.getsize(output_path)
+
+    return response
 
 
 if __name__ == '__main__':

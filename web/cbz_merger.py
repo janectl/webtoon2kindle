@@ -1,62 +1,96 @@
+import re
 import shutil
 from pathlib import PurePosixPath
 from zipfile import ZipFile, ZIP_STORED
 
-
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+def natural_key(value):
+    return [
+        int(part) if part.isdigit() else part.lower()
+        for part in re.split(r"(\d+)", value)
+    ]
+
+
+def episode_number(filename):
+    match = re.search(
+        r"(?:episode|ep)[\s._-]*(\d+)",
+        filename,
+        re.IGNORECASE,
+    )
+    return int(match.group(1)) if match else None
+
+
+def sort_episodes(files):
+    return sorted(
+        files,
+        key=lambda file: (
+            episode_number(file.filename) is None,
+            episode_number(file.filename) or 0,
+            natural_key(file.filename),
+        ),
+    )
 
 
 def merge_cbz(files, output_path):
     """
-    Merge CBZ files into one archive.
+    Merge CBZ files into a single ordered CBZ.
 
-    Each source CBZ becomes a separate episode folder.
+    Files are processed in the order provided.
     Images are copied without decoding or recompression.
     """
+    total_pages = 0
 
     with ZipFile(
         output_path,
         "w",
         compression=ZIP_STORED,
-        allowZip64=True
+        allowZip64=True,
     ) as output:
 
-        for episode_number, uploaded_file in enumerate(files, start=1):
+        for episode_index, uploaded_file in enumerate(files, start=1):
             uploaded_file.stream.seek(0)
 
             with ZipFile(uploaded_file.stream, "r") as source:
-
                 images = sorted(
                     [
-                        item for item in source.infolist()
+                        item
+                        for item in source.infolist()
                         if not item.is_dir()
                         and PurePosixPath(item.filename).suffix.lower()
                         in IMAGE_EXTENSIONS
+                        and "__MACOSX" not in item.filename.split("/")
                     ],
-                    key=lambda item: item.filename
+                    key=lambda item: natural_key(item.filename),
                 )
 
                 if not images:
                     raise ValueError(
-                        f"Episode {episode_number} contains no images"
+                        f"No images found in {uploaded_file.filename}"
                     )
 
-                for page_number, item in enumerate(images, start=1):
+                print(
+                    f"[Webtoon2Kindle] Merging "
+                    f"{uploaded_file.filename}: {len(images)} images",
+                    flush=True,
+                )
+
+                for item in images:
+                    total_pages += 1
+
                     extension = PurePosixPath(
                         item.filename
                     ).suffix.lower()
 
-                    filename = (
-                        f"Episode_{episode_number:03d}/"
-                        f"{page_number:04d}{extension}"
-                    )
+                    destination = f"{total_pages:06d}{extension}"
 
                     with source.open(item) as src:
-                        with output.open(filename, "w") as dst:
+                        with output.open(destination, "w") as dst:
                             shutil.copyfileobj(
                                 src,
                                 dst,
-                                length=1024 * 1024
+                                length=1024 * 1024,
                             )
 
-    return output_path
+    return total_pages
