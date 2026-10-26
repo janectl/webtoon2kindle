@@ -1,559 +1,117 @@
-
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Webtoon2Kindle</title>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f5f0">
+  <title>Webtoon2Kindle · Your stories, on E Ink</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body>
+  <div class="background-glow" aria-hidden="true"></div>
+  <header class="site-header page-width">
+    <a href="/" class="wordmark" aria-label="Webtoon2Kindle home">
+      <span class="logo-mark" aria-hidden="true">▤</span>
+      <span>WEBTOON<span class="brand-emphasis">2</span>KINDLE</span>
+    </a>
+    <span class="header-pill"><span class="status-dot"></span> Self-hosted · Private</span>
+  </header>
 
-    <style>
-      * {
-        box-sizing: border-box;
-      }
+  <main class="page-width">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="eyebrow"><span class="eyebrow-line"></span> MADE FOR THE NEXT CHAPTER</div>
+      <h1 id="hero-title">Your stories.<br><em>Your reading device.</em></h1>
+      <p>Turn supported comic chapters and your own image collections into Kindle-ready CBZ or PDF files. No account, no cloud storage, no awkward panel splits.</p>
+      <div class="hero-pills"><span>WEBTOON</span><span>COMIX</span><span>CBZ / PDF</span><span>KOReader friendly</span></div>
+    </section>
 
-      body {
-        font: 16px system-ui, sans-serif;
-        background: #f3f4f6;
-        color: #20232a;
-        margin: 0;
-        padding: 48px 16px;
-      }
-
-      .card {
-        max-width: 580px;
-        margin: auto;
-        background: white;
-        padding: 32px;
-        border-radius: 18px;
-        box-shadow: 0 8px 32px #0001;
-      }
-
-      h1 {
-        margin-top: 0;
-      }
-
-      h2 {
-        font-size: 21px;
-        margin-bottom: 8px;
-      }
-
-      p {
-        line-height: 1.5;
-      }
-
-      label {
-        display: block;
-        margin: 18px 0 8px;
-        font-weight: 500;
-      }
-
-      input[type="url"],
-      input[type="text"],
-      select {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid #bbb;
-        border-radius: 8px;
-        font: inherit;
-        background: white;
-      }
-
-      input[type="file"] {
-        max-width: 100%;
-      }
-
-      button {
-        background: #20232a;
-        color: white;
-        border: 0;
-        padding: 15px 20px;
-        border-radius: 9px;
-        cursor: pointer;
-        width: 100%;
-        margin-top: 22px;
-        font: inherit;
-      }
-
-      button:hover:not(:disabled) {
-        background: #374151;
-      }
-
-      button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      small {
-        color: #666;
-      }
-
-      .section-divider {
-        border: 0;
-        border-top: 1px solid #e5e7eb;
-        margin: 32px 0;
-      }
-
-      .merge-section p {
-        line-height: 1.5;
-      }
-
-      .merge-section input[type="file"] {
-        margin-top: 8px;
-      }
-
-      .episode-heading {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        margin-top: 24px;
-      }
-
-      .episode-heading strong {
-        font-size: 15px;
-      }
-
-      .secondary-button {
-        width: auto;
-        margin: 0;
-        padding: 9px 12px;
-        background: #e5e7eb;
-        color: #20232a;
-        font-size: 13px;
-      }
-
-      .secondary-button:hover:not(:disabled) {
-        background: #d1d5db;
-      }
-
-      #episode-list {
-        list-style: decimal;
-        padding-left: 28px;
-        margin: 12px 0 20px;
-      }
-
-      .episode-item {
-        padding: 10px 0;
-        border-bottom: 1px solid #e5e7eb;
-      }
-
-      .episode-item::marker {
-        font-weight: 600;
-      }
-
-      .episode-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .episode-filename {
-        min-width: 0;
-        overflow-wrap: anywhere;
-        font-size: 14px;
-      }
-
-      .episode-controls {
-        display: flex;
-        flex-shrink: 0;
-        gap: 6px;
-      }
-
-      .episode-controls button {
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        margin: 0;
-        background: #e5e7eb;
-        color: #20232a;
-      }
-
-      .episode-controls button:hover:not(:disabled) {
-        background: #d1d5db;
-      }
-
-      #merge-status {
-        font-size: 14px;
-        color: #4b5563;
-        overflow-wrap: anywhere;
-      }
-
-      .footer-info {
-        margin-bottom: 0;
-      }
-
-      @media (max-width: 480px) {
-        body {
-          padding: 16px 10px;
-        }
-
-        .card {
-          padding: 22px 18px;
-        }
-      }
-    </style>
-  </head>
-
-  <body>
-    <main class="card">
-      <h1>📖 Webtoon2Kindle</h1>
-
-      <p>
-        Turn accessible WEBTOON episodes into Kindle Paperwhite 4 pages
-        (1072 × 1448).
-      </p>
-
-      <!-- WEBTOON Converter -->
-      <section class="converter-section">
-        <form
-          action="/convert"
-          method="post"
-          enctype="multipart/form-data"
-        >
-          <label for="url">WEBTOON episode URL</label>
-
-          <input
-            id="url"
-            name="url"
-            type="url"
-            placeholder="https://www.webtoons.com/.../viewer?..."
-          />
-
-          <p>
-            <small>
-              Or upload comic images you have permission to convert:
-            </small>
-          </p>
-
-          <input
-            id="images"
-            type="file"
-            name="images"
-            accept="image/png,image/jpeg,image/webp"
-            multiple
-          />
-
-          <label for="format">Export format</label>
-
-          <select id="format" name="format">
-            <option value="cbz">
-              CBZ (recommended for KOReader)
-            </option>
-            <option value="pdf">PDF</option>
-          </select>
-
-          <label>
-            <input
-              type="checkbox"
-              name="grayscale"
-              checked
-            />
-            Grayscale + contrast
-          </label>
-
-          <button type="submit">
-            Convert and download
-          </button>
-        </form>
-      </section>
-
-      <hr class="section-divider" />
-
-      <!-- CBZ Merger -->
-      <section class="merge-section">
-        <h2>📚 Merge CBZ Episodes</h2>
-
-        <p>
-          Combine multiple episodes into one CBZ volume.
-          Original image quality is preserved.
-        </p>
-
-        <form
-          id="merge-form"
-          action="/merge-cbz"
-          method="post"
-          enctype="multipart/form-data"
-        >
-          <label for="cbz-files">Select CBZ episodes</label>
-
-          <input
-            id="cbz-files"
-            type="file"
-            accept=".cbz"
-            multiple
-            required
-          />
-
-          <input
-            type="hidden"
-            id="order-mode"
-            name="order_mode"
-            value="auto"
-          />
-
-          <div id="episode-manager" hidden>
-            <div class="episode-heading">
-              <strong>Reading order</strong>
-
-              <button
-                type="button"
-                id="sort-episodes"
-                class="secondary-button"
-              >
-                Sort episodes
-              </button>
+    <section class="workspace" aria-label="Comic converter">
+      <div class="workspace-heading">
+        <div><span class="section-kicker">01 / CREATE</span><h2>Convert a chapter</h2></div>
+        <span class="workspace-label">One chapter at a time</span>
+      </div>
+      <form id="convert-form" action="/convert" method="post" enctype="multipart/form-data">
+        <div class="converter-grid">
+          <div class="converter-main">
+            <div class="field-title">Choose an input</div>
+            <div class="tab-list" role="tablist" aria-label="Input type">
+              <button type="button" class="source-tab is-active" data-tab="link" role="tab" aria-selected="true" aria-controls="panel-link">Chapter link</button>
+              <button type="button" class="source-tab" data-tab="images" role="tab" aria-selected="false" aria-controls="panel-images">Images</button>
+              <button type="button" class="source-tab" data-tab="cbz" role="tab" aria-selected="false" aria-controls="panel-cbz">Existing CBZ</button>
             </div>
-
-            <ol id="episode-list"></ol>
+            <div id="panel-link" class="tab-panel" role="tabpanel">
+              <label for="url">WEBTOON or Comix chapter URL</label>
+              <input type="url" id="url" name="url" placeholder="https://comix.to/title/series/chapter" autocomplete="off">
+              <div class="inspect-row"><button type="button" class="subtle-button" id="inspect-link">Check chapter link</button><span id="inspect-status" role="status" aria-live="polite"></span></div>
+              <p class="field-help">Paste a specific episode / chapter reader link, not a series homepage. Comix links work only when the reader exposes public chapter images.</p>
+              <div class="source-tags"><span class="tag">webtoons.com</span><span class="tag">comix.to</span><span class="tag">comix.ws</span></div>
+            </div>
+            <div id="panel-images" class="tab-panel" role="tabpanel" hidden>
+              <label for="images">Upload page images</label>
+              <input type="file" id="images" name="images" accept="image/png,image/jpeg,image/webp" multiple>
+              <p class="field-help">PNG, JPEG or WEBP. Pages are ordered naturally by filename (1, 2, … 10).</p>
+              <label for="name" class="label-space">Download filename</label>
+              <input type="text" id="name" name="name" placeholder="My Comic - Chapter 01" maxlength="100">
+            </div>
+            <div id="panel-cbz" class="tab-panel" role="tabpanel" hidden>
+              <label for="cbz">Upload one CBZ chapter</label>
+              <input type="file" id="cbz" name="cbz" accept=".cbz,application/vnd.comicbook+zip">
+              <p class="field-help">Convert an existing CBZ to PDF or re-optimize it for your e-reader. Useful when the source's reader blocks third-party downloads.</p>
+            </div>
           </div>
+          <aside class="converter-settings" aria-label="Export settings">
+            <div class="field-title settings-title">Reading preferences</div>
+            <label for="format">Output format</label>
+            <select id="format" name="format"><option value="cbz">CBZ · recommended</option><option value="pdf">PDF · universal</option></select>
+            <label for="max_width">Page width</label>
+            <select id="max_width" name="max_width"><option value="1072" selected>1072 px · Paperwhite 4</option><option value="1264">1264 px · Paperwhite 5</option><option value="1448">1448 px · higher detail</option><option value="0">Original width · no resize</option></select>
+            <p class="field-help compact">Tall pages keep their aspect ratio. Nothing gets split.</p>
+            <label class="switch-row" for="grayscale"><span><strong>Grayscale</strong><small>For E Ink screens</small></span><span class="switch"><input type="checkbox" name="grayscale" id="grayscale" checked><span class="switch-slider"></span></span></label>
+            <div class="range-heading"><label for="contrast">Contrast</label><output id="contrast-value" for="contrast">1.15×</output></div>
+            <input type="range" id="contrast" name="contrast" min="0.5" max="2" step="0.05" value="1.15">
+          </aside>
+        </div>
+        <div class="form-footer">
+          <span class="form-note" id="convert-status" role="status" aria-live="polite">Convert only chapters you have permission to save.</span>
+          <button class="primary-button" type="submit">Convert &amp; download <span aria-hidden="true">↗</span></button>
+        </div>
+      </form>
+    </section>
 
-          <label for="volume-name">Volume name</label>
+    <section class="workspace merge-workspace" aria-labelledby="merge-title">
+      <div class="workspace-heading">
+        <div><span class="section-kicker">02 / ORGANIZE</span><h2 id="merge-title">Build a volume</h2></div>
+        <span class="workspace-label">2–20 episodes</span>
+      </div>
+      <p class="merge-intro">Combine downloaded chapters into a single CBZ. Pages are copied without recompression, so your original image quality stays intact.</p>
+      <form id="merge-form" action="/merge-cbz" method="post" enctype="multipart/form-data">
+        <div class="merge-grid">
+          <div class="merge-inputs">
+            <label for="cbz-files">Chapter files</label>
+            <input id="cbz-files" type="file" accept=".cbz,application/vnd.comicbook+zip" multiple required>
+            <p class="field-help">Drag-and-drop is supported by your browser's file picker. Sort by episode, or use arrows to adjust.</p>
+          </div>
+          <div>
+            <label for="volume-name">Volume name</label>
+            <input id="volume-name" type="text" name="volume_name" maxlength="100" placeholder="Dungeon Crawler Carl · Volume 1">
+          </div>
+        </div>
+        <input type="hidden" id="order-mode" name="order_mode" value="auto">
+        <div id="episode-manager" class="episode-manager" hidden>
+          <div class="episode-heading"><strong>Reading order <span id="episode-count"></span></strong><button id="sort-episodes" type="button" class="subtle-button">Sort by episode number</button></div>
+          <ol id="episode-list"></ol>
+        </div>
+        <div class="form-footer"><span class="form-note" id="merge-status" role="status" aria-live="polite">Large merges may require a higher upload limit on your reverse proxy.</span><button type="submit" id="merge-button" class="primary-button">Merge chapters <span aria-hidden="true">↗</span></button></div>
+      </form>
+    </section>
 
-          <input
-            id="volume-name"
-            name="volume_name"
-            type="text"
-            placeholder="Dungeon Crawler Carl"
-            maxlength="100"
-          />
-
-          <p>
-            <small>
-              Select 2–20 CBZ files. Episodes are automatically sorted
-              by episode number. Use the arrow buttons to adjust their
-              reading order.
-            </small>
-          </p>
-
-          <button type="submit" id="merge-button">
-            Merge and download CBZ
-          </button>
-
-          <p
-            id="merge-status"
-            role="status"
-            aria-live="polite"
-          ></p>
-        </form>
-      </section>
-
-      <hr class="section-divider" />
-
-      <p class="footer-info">
-        <small>
-          Imports only images accessible without bypassing restrictions.
-          If the site blocks downloads, the app reports an error.
-          Panel-aware splitting is planned.
-        </small>
-      </p>
-    </main>
-
-    <script>
-      const fileInput = document.getElementById("cbz-files");
-      const episodeManager = document.getElementById("episode-manager");
-      const episodeList = document.getElementById("episode-list");
-      const sortButton = document.getElementById("sort-episodes");
-      const orderMode = document.getElementById("order-mode");
-      const mergeForm = document.getElementById("merge-form");
-      const mergeButton = document.getElementById("merge-button");
-      const mergeStatus = document.getElementById("merge-status");
-      const volumeInput = document.getElementById("volume-name");
-
-      let selectedFiles = [];
-
-      function episodeNumber(filename) {
-        const match = filename.match(
-          /(?:episode|ep)[\s._-]*(\d+)/i
-        );
-
-        return match ? Number(match[1]) : null;
-      }
-
-      function sortFiles() {
-        selectedFiles.sort((a, b) => {
-          const numberA = episodeNumber(a.name);
-          const numberB = episodeNumber(b.name);
-
-          if (numberA !== null && numberB !== null) {
-            if (numberA !== numberB) {
-              return numberA - numberB;
-            }
-          } else if (numberA !== null) {
-            return -1;
-          } else if (numberB !== null) {
-            return 1;
-          }
-
-          return a.name.localeCompare(
-            b.name,
-            undefined,
-            {
-              numeric: true,
-              sensitivity: "base"
-            }
-          );
-        });
-
-        orderMode.value = "auto";
-        renderEpisodes();
-      }
-
-      function moveEpisode(index, direction) {
-        const target = index + direction;
-
-        if (target < 0 || target >= selectedFiles.length) {
-          return;
-        }
-
-        [
-          selectedFiles[index],
-          selectedFiles[target]
-        ] = [
-          selectedFiles[target],
-          selectedFiles[index]
-        ];
-
-        orderMode.value = "manual";
-        renderEpisodes();
-      }
-
-      function renderEpisodes() {
-        episodeList.replaceChildren();
-
-        episodeManager.hidden = selectedFiles.length === 0;
-
-        selectedFiles.forEach((file, index) => {
-          const item = document.createElement("li");
-          item.className = "episode-item";
-
-          const row = document.createElement("div");
-          row.className = "episode-row";
-
-          const filename = document.createElement("span");
-          filename.className = "episode-filename";
-          filename.textContent = file.name;
-
-          const controls = document.createElement("div");
-          controls.className = "episode-controls";
-
-          const up = document.createElement("button");
-          up.type = "button";
-          up.textContent = "↑";
-          up.setAttribute(
-            "aria-label",
-            `Move ${file.name} up`
-          );
-          up.disabled = index === 0;
-
-          up.addEventListener("click", () => {
-            moveEpisode(index, -1);
-          });
-
-          const down = document.createElement("button");
-          down.type = "button";
-          down.textContent = "↓";
-          down.setAttribute(
-            "aria-label",
-            `Move ${file.name} down`
-          );
-          down.disabled = index === selectedFiles.length - 1;
-
-          down.addEventListener("click", () => {
-            moveEpisode(index, 1);
-          });
-
-          controls.append(up, down);
-          row.append(filename, controls);
-          item.appendChild(row);
-          episodeList.appendChild(item);
-        });
-      }
-
-      fileInput.addEventListener("change", () => {
-        selectedFiles = Array.from(fileInput.files);
-        sortFiles();
-        mergeStatus.textContent = "";
-      });
-
-      sortButton.addEventListener("click", () => {
-        sortFiles();
-      });
-
-      mergeForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-
-        if (
-          selectedFiles.length < 2 ||
-          selectedFiles.length > 20
-        ) {
-          mergeStatus.textContent =
-            "Please select between 2 and 20 CBZ files.";
-          return;
-        }
-
-        const data = new FormData();
-
-        // Submit files in the exact order shown on screen.
-        selectedFiles.forEach((file) => {
-          data.append("cbz_files", file, file.name);
-        });
-
-        data.append("order_mode", "manual");
-        data.append("volume_name", volumeInput.value);
-
-        mergeButton.disabled = true;
-        mergeStatus.textContent =
-          "Uploading and merging episodes...";
-
-        try {
-          const response = await fetch("/merge-cbz", {
-            method: "POST",
-            body: data
-          });
-
-          if (!response.ok) {
-            throw new Error(await response.text());
-          }
-
-          mergeStatus.textContent =
-            "Merge complete. Preparing download...";
-
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-
-          const disposition =
-            response.headers.get("Content-Disposition") || "";
-
-          const match = disposition.match(
-            /filename="([^"]+)"/
-          );
-
-          const filename = match
-            ? match[1]
-            : "Merged-Volume.cbz";
-
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = filename;
-
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-
-          setTimeout(() => {
-            URL.revokeObjectURL(url);
-          }, 60000);
-
-          mergeStatus.textContent =
-            "Your merged CBZ has been downloaded!";
-        } catch (error) {
-          mergeStatus.textContent =
-            `Merge failed: ${error.message}`;
-        } finally {
-          mergeButton.disabled = false;
-        }
-      });
-    </script>
-  </body>
+    <section class="info-grid" aria-label="How it works">
+      <div><span class="info-index">01</span><h3>Source</h3><p>Import a public chapter link, or upload your images or CBZ.</p></div>
+      <div><span class="info-index">02</span><h3>Optimize</h3><p>Resize to a Kindle-friendly width and tune grayscale and contrast.</p></div>
+      <div><span class="info-index">03</span><h3>Read</h3><p>Download a CBZ or PDF and open it with KOReader on your Kindle.</p></div>
+    </section>
+  </main>
+  <footer class="site-footer page-width"><span>WEBTOON2KINDLE <span aria-hidden="true">©</span> 2026</span><span>Independent, unofficial, and built for personal reading.</span></footer>
+</body>
 </html>
