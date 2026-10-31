@@ -18,7 +18,7 @@ import tempfile
 
 app = Flask(__name__)
 
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 
 MAX_IMAGES = 30
 MAX_PIXELS = 100_000_000
