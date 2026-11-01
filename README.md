@@ -1,82 +1,58 @@
 # 📚 Webtoon2Kindle
 
-**A lightweight, self-hosted WEBTOON-to-Kindle converter built with Python and Flask.**
+Convert WEBTOON and Comix chapters into **PDF or CBZ** files for offline reading on Kindle and other e-readers.
 
-Convert WEBTOON episodes into PDF or CBZ files for offline reading on Kindle and other e-readers.
+## 💡 Why I Built This
 
+It started because I wanted to read **Dungeon Crawler Carl** on my Kindle Paperwhite using KOReader, wahahaha
 
-### Why I built this
+Since webtoons are designed for vertical scrolling, I wanted a simple way to enjoy them on an E Ink device.
 
-It all started because I wanted to read **Dungeon Crawler Carl** on my Kindle Paperwhite using KOReader wahahah
+## 🐳 Installation
 
-Since WEBTOON is designed for continuous vertical scrolling, I wanted a simple way to bring that reading experience to my E Ink device.
+**Prerequisites:** Docker Engine, Docker Compose v2, and Git.
 
-
-## 📋 Prerequisites
-
-For the recommended Docker installation:
-
--   Docker Engine (or Docker Desktop)
--   Docker Compose v2 (`docker compose`)
--   Git
--   A web browser
--   An internet connection for importing WEBTOON episodes
-
-**You do not need to install Python, pip, or create a virtual
-environment on your host** when using Docker.
-
-## 🐳 Installation with Docker Compose (Recommended)
-
-### 1. Clone the repository
-
-``` bash
+```bash
 git clone https://github.com/janectl/webtoon2kindle.git
 cd webtoon2kindle
-```
-
-### 2. Build and start the container
-
-``` bash
 docker compose up -d --build
 ```
 
-Docker Compose builds the application image, installs its Python
-dependencies, and starts the container.
+Open **http://127.0.0.1:8091** in your browser.
 
-### 3. Verify the container
+> **Note:** WEBTOON conversion is supported in Docker. Comix currently requires a visible Chrome browser and should be run locally on Ubuntu until headless container support is implemented.
 
-``` bash
-docker compose ps
+## 🛠️ Development
+
+For local development on Ubuntu:
+
+```bash
+git clone https://github.com/janectl/webtoon2kindle.git
+cd webtoon2kindle
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+python -m flask --app web.app run --host 127.0.0.1 --port 8091
 ```
 
-To view application logs:
+## 🚀 Development & Contributions
 
-``` bash
-docker compose logs -f webtoon2kindle
-```
+New features, improvements, and bug fixes are tracked through:
 
-### 4. Open the web interface
+- [GitHub Issues](https://github.com/janectl/webtoon2kindle/issues)
+- [Webtoon2Kindle Development Board](https://github.com/users/janectl/projects/3)
+- [Contributing Guidelines](CONTRIBUTING.md)
 
-On the same computer running Docker, open:
-
-**http://127.0.0.1:8091**
-
-
-Webtoon2Kindle is now ready to use!
-
+Contributions and suggestions are welcome!
 
 ## ⚠️ Disclaimer
 
-Webtoon2Kindle is an independent, unofficial project and is not affiliated with, endorsed by, or sponsored by WEBTOON or the creators and publishers of Dungeon Crawler Carl.
+Webtoon2Kindle is an independent, unofficial project and is not affiliated with WEBTOON, Comix, or any content creators or publishers.
 
-This project was developed for personal experimentation with e-reader compatibility and content that users are authorized to download and convert.
-
-Users are responsible for complying with applicable copyright laws and the terms of service of content providers.
-
-All rights to WEBTOON content, artwork, stories, and characters remain with their respective owners. The project's open-source license applies only to the software, not to third-party content.
+Use this software only with content you are authorized to download and convert. Users are responsible for complying with applicable copyright laws and content providers' terms of service.
 
 ## 📄 License
 
-This project is licensed under the **MIT License**.
-
-See the [LICENSE](LICENSE) file for details.
+Licensed under the **MIT License**. See [LICENSE](LICENSE).
