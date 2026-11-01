@@ -12,6 +12,8 @@ services:
 
     environment:
       PYTHONUNBUFFERED: "1"
+      MAX_UPLOAD_MB: "512"
+      MAX_EPISODE_IMAGES: "500"
 
     mem_limit: 2g
 
