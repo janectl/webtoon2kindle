@@ -6,6 +6,8 @@ or bypass anti-bot or content controls.
 """
 import json
 import re
+from collections import Counter
+
 from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
@@ -19,13 +21,23 @@ IMAGE_HOSTS = frozenset({
 })
 
 
+
 def _image_url(value, page_url):
     if not isinstance(value, str) or not value:
         return None
+
     url = urljoin(page_url, value)
     split = urlsplit(url)
-    if split.scheme == "https" and (split.hostname or "").lower() in IMAGE_HOSTS:
+
+    if (
+        split.scheme == "https"
+        and split.hostname
+        and not split.username
+        and not split.password
+        and split.port in (None, 443)
+    ):
         return url
+
     return None
 
 
@@ -114,6 +126,109 @@ def parse_comix(html, url):
     chapter = f"Chapter {match.group(1)}" if match else "Chapter " + chapter_id.split("-")[0]
     return series, chapter, image_urls
 
+async def _browser_images_async(url):
+    """Read ordinary image URLs after scrolling a publicly accessible reader.
+
+    The reference downloader uses nodriver and `.rpage-page[data-page]` scrolling.
+    We intentionally do not import its WAF handling, cookies, canvas export,
+    or blob/decryption routines. This adapter returns HTTPS image URLs only.
+    """
+    import asyncio
+    import nodriver as uc
+
+    browser = await uc.start(headless=False)
+    try:
+        tab = await browser.get(url)
+        for _ in range(120):
+            location = await tab.evaluate("location.href")
+            title = await tab.evaluate("document.title")
+            if "/@waf/challenge" in str(location) or str(title).lower() == "security check":
+                await asyncio.sleep(1)
+                continue
+            
+            count = await tab.evaluate("document.querySelectorAll('.rpage-page').length")
+            if count:
+                break
+            await asyncio.sleep(1)
+        
+        else:
+            raise SourceError("Comix chapter reader did not become available within 120 seconds.")
+
+        if count > 500:
+            raise SourceError("Comix chapter exceeds the browser page limit.")
+        for index in range(int(count)):
+            await tab.evaluate("""(function(i) {
+                const page = document.querySelectorAll('.rpage-page')[i];
+                if (page) page.scrollIntoView({block: 'center'});
+            })(%d)""" % index)
+            await asyncio.sleep(0.3)
+
+        diagnostics = await tab.evaluate("""
+        JSON.stringify(
+            Array.from(document.querySelectorAll('.rpage-page'))
+                .slice(0, 5)
+                .map((page, index) => ({
+                    page: index + 1,
+                    images: Array.from(page.querySelectorAll('img')).map(img => ({
+                        src: img.currentSrc || img.src,
+                        loaded: img.complete,
+                        width: img.naturalWidth
+                    })),
+                    canvases: page.querySelectorAll('canvas').length,
+                    blobs: page.querySelectorAll('img[src^="blob:"]').length
+                }))
+        )
+        """)
+
+        print("COMIX DIAGNOSTICS:", diagnostics, flush=True)
+
+        candidates = await tab.evaluate("""JSON.stringify(
+            Array.from(document.querySelectorAll('.rpage-page img'))
+                .filter(img => img.complete && img.naturalWidth > 10)
+                .map(img => img.currentSrc || img.getAttribute('data-src') || img.src)
+        )""")
+
+        # Debug: identify image hosts and extraction results
+        raw_urls = json.loads(candidates or "[]")
+
+        print(
+            "COMIX IMAGE HOSTS:",
+            dict(Counter(urlsplit(item).hostname for item in raw_urls)),
+            flush=True
+        )
+
+        print("COMIX IMAGE COUNT:", len(raw_urls), flush=True)
+
+        accepted_urls = list(dict.fromkeys(filter(None, (
+            _image_url(item, url) for item in raw_urls
+        ))))
+
+        print("COMIX ACCEPTED IMAGES:", len(accepted_urls), flush=True)
+
+        return accepted_urls
+    
+    finally:
+        #input("Press Enter to close Chrome...")
+        browser.stop()
+
+
+def browser_images(url):
+    """Open a visible local Chrome browser to scroll and inspect the reader."""
+    import asyncio
+    import os
+    from web.sources.http import validate_url
+    validate_url(url, PAGE_HOSTS)
+    if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+        raise SourceError("Visible Comix browser requires a desktop display. Run locally on Ubuntu, not in headless Docker.")
+    try:
+        return asyncio.run(_browser_images_async(url))
+    except SourceError:
+        raise
+    except ImportError as exc:
+        raise SourceError("Install nodriver to enable Comix browser extraction.") from exc
+    except Exception as exc:
+        raise SourceError(f"Comix browser extraction failed: {type(exc).__name__}") from exc
+
 
 def import_comix(url):
     path = [part for part in urlsplit(url).path.split("/") if part]
@@ -122,4 +237,20 @@ def import_comix(url):
             "Paste a Comix chapter reader URL (https://comix.to/title/series/chapter), "
             "not a series listing."
         )
-    return (*parse_comix(download_html(url, PAGE_HOSTS), url), IMAGE_HOSTS)
+    from web.sources.http import validate_url
+    validate_url(url, PAGE_HOSTS)
+    images = browser_images(url)
+    if not images:
+        raise SourceError(
+            "No direct HTTPS reader images were found. The reference downloader may "
+            "use canvas/blob image data, which this first integration does not export."
+        )
+    series = path[1].replace("-", " ").title()
+    match = re.search(r"chapter[-_ ]*([\d.]+)", path[2], re.I)
+    chapter = f"Chapter {match.group(1)}" if match else path[2]
+    
+    dynamic_hosts = frozenset(
+    urlsplit(image_url).hostname.lower()
+    for image_url in images)
+
+    return series, chapter, images, dynamic_hosts

@@ -106,6 +106,7 @@ def create_app():
                         "application/vnd.comicbook+zip")
             return download_temp(output_path, tempdir, f"{name}.{output}", mimetype)
         except (ValueError, OSError, BadZipFile) as exc:
+            app.logger.exception("Conversion failed")
             return str(exc), 400
 
     @app.post("/merge-cbz")

@@ -55,8 +55,19 @@ def cbz_pages(file):
 
 
 def remote_pages(chapter):
-    for url in chapter.image_urls:
-        yield download(url, chapter.image_hosts, referer=chapter.referer)
+    for index, url in enumerate(chapter.image_urls, start=1):
+        print(f"Downloading page {index}/{len(chapter.image_urls)}", flush=True)
+
+        try:
+            yield download(
+                url,
+                chapter.image_hosts,
+                referer=None if "comix.to" in chapter.referer or "comix.ws" in chapter.referer else chapter.referer
+            )
+        except SourceError as exc:
+            raise SourceError(
+                f"Failed downloading page {index}: {exc}"
+            ) from exc
 
 
 def process_image(raw, *, grayscale, contrast, max_width):

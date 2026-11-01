@@ -47,3 +47,13 @@ def test_comix_title_url_not_accepted(monkeypatch):
         resolve_source("https://comix.to/title/abc")
 
 
+
+
+def test_comix_browser_first(monkeypatch):
+    from web.sources import comix
+    monkeypatch.setattr(comix, "browser_images", lambda url: ["https://static.comix.to/1.jpg"])
+    monkeypatch.setattr("web.sources.http.validate_url", lambda url, hosts: url)
+    series, chapter, images, hosts = comix.import_comix(
+        "https://comix.to/title/test-series/123-chapter-9")
+    assert chapter == "Chapter 9"
+    assert images == ["https://static.comix.to/1.jpg"]
